@@ -14,6 +14,12 @@ const DEFAULTS: { ret: Address; addr: Address } = {
   addr: { line1: "Jane Doe", line2: "456 Main Street", line3: "Apt. 2C", line4: "Anytown, USA 12345" },
 }
 
+// Recipient type defaults per layout — the smaller 4 × 3 label wants a smaller starting size.
+const TYPE_DEFAULTS = {
+  single: { fontSize: 18, lineHeight: 1.2 },
+  twoUp: { fontSize: 12, lineHeight: 1.1 },
+}
+
 const SCOPED_CSS = `
 input[type="range"] { -webkit-appearance: none; appearance: none; background: #d9e0e8; border-radius: 999px; }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 17px; height: 17px; border-radius: 50%; background: #1b3a6b; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(27,58,107,0.35); cursor: pointer; }
@@ -208,8 +214,8 @@ export default function LabelStudio() {
     setRet({ ...DEFAULTS.ret })
     setAddr({ ...DEFAULTS.addr })
     setIncludeReturn(true)
-    setFontSize(18)
-    setLineHeight(1.2)
+    setFontSize(TYPE_DEFAULTS.single.fontSize)
+    setLineHeight(TYPE_DEFAULTS.single.lineHeight)
     setAlignment("center")
     setReturnFontSize(10)
     setReturnLineHeight(1.3)
@@ -219,6 +225,23 @@ export default function LabelStudio() {
   const swap = () => {
     setRet(addr)
     setAddr(ret)
+  }
+
+  // Switching layouts resets the recipient size/line height to that layout's default
+  // (only when the mode actually changes, so re-clicking the active option is a no-op).
+  const chooseSingle = () => {
+    if (twoUp) {
+      setFontSize(TYPE_DEFAULTS.single.fontSize)
+      setLineHeight(TYPE_DEFAULTS.single.lineHeight)
+    }
+    setTwoUp(false)
+  }
+  const chooseTwoUp = () => {
+    if (!twoUp) {
+      setFontSize(TYPE_DEFAULTS.twoUp.fontSize)
+      setLineHeight(TYPE_DEFAULTS.twoUp.lineHeight)
+    }
+    setTwoUp(true)
   }
 
   const download = () => {
@@ -598,10 +621,10 @@ export default function LabelStudio() {
                 Sheet Layout
               </span>
               <div style={{ display: "flex", gap: 4, padding: 4, background: "#eaeef3", borderRadius: 11, border: "1px solid #dde4ec" }}>
-                <button type="button" onClick={() => setTwoUp(false)} style={{ ...segBase, ...(!twoUp ? segActive : segInactive) }}>
+                <button type="button" onClick={chooseSingle} style={{ ...segBase, ...(!twoUp ? segActive : segInactive) }}>
                   Single 4 × 6
                 </button>
-                <button type="button" onClick={() => setTwoUp(true)} style={{ ...segBase, ...(twoUp ? segActive : segInactive) }}>
+                <button type="button" onClick={chooseTwoUp} style={{ ...segBase, ...(twoUp ? segActive : segInactive) }}>
                   Two 4 × 3
                 </button>
               </div>
