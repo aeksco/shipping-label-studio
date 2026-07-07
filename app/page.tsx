@@ -15,11 +15,11 @@ const DEFAULTS: { ret: Address; addr: Address } = {
 
 const SCOPED_CSS = `
 input[type="range"] { -webkit-appearance: none; appearance: none; background: #d9e0e8; border-radius: 999px; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 17px; height: 17px; border-radius: 50%; background: #17202b; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(23,32,43,0.35); cursor: pointer; }
-input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #17202b; border: 3px solid #fff; cursor: pointer; }
-.ls-reset:hover, .ls-swap:hover { border-color: #b8c2ce !important; color: #17202b !important; }
-.ls-input:focus { border-color: #17202b !important; box-shadow: 0 0 0 3px rgba(23,32,43,0.08) !important; }
-.ls-download:hover { background: #29323f !important; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 17px; height: 17px; border-radius: 50%; background: #1b3a6b; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(27,58,107,0.35); cursor: pointer; }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #1b3a6b; border: 3px solid #fff; cursor: pointer; }
+.ls-reset:hover, .ls-swap:hover { border-color: #b8c2ce !important; color: #1b3a6b !important; }
+.ls-input:focus { border-color: #1b3a6b !important; box-shadow: 0 0 0 3px rgba(27,58,107,0.08) !important; }
+.ls-download:hover { background: #264f8f !important; }
 @media (max-width: 720px) {
   .ls-header { padding: 12px 16px !important; }
   .ls-main { padding: 14px !important; gap: 16px !important; flex-direction: column !important; }
@@ -42,7 +42,7 @@ const inputStyle: CSSProperties = {
   background: "#f8fafc",
   fontSize: 14,
   fontFamily: "inherit",
-  color: "#17202b",
+  color: "#1b3a6b",
   outline: "none",
   transition: "border-color .15s, box-shadow .15s",
 }
@@ -211,7 +211,7 @@ export default function LabelStudio() {
     fontFamily: "inherit",
     transition: "all .15s",
   }
-  const segActive: CSSProperties = { background: "#17202b", color: "#fff", boxShadow: "0 1px 3px rgba(23,32,43,0.2)" }
+  const segActive: CSSProperties = { background: "#1b3a6b", color: "#fff", boxShadow: "0 1px 3px rgba(27,58,107,0.2)" }
   const segInactive: CSSProperties = { background: "transparent", color: "#5b6675", boxShadow: "none" }
 
   return (
@@ -221,12 +221,23 @@ export default function LabelStudio() {
         minHeight: "100vh",
         background: "#eaeef3",
         fontFamily: SANS,
-        color: "#17202b",
+        color: "#1b3a6b",
         display: "flex",
         flexDirection: "column",
       }}
     >
       <style dangerouslySetInnerHTML={{ __html: SCOPED_CSS }} />
+
+      {/* Airmail ribbon — the postal signature */}
+      <div
+        aria-hidden="true"
+        style={{
+          height: 7,
+          flexShrink: 0,
+          backgroundImage:
+            "repeating-linear-gradient(-45deg, #c8102e 0 10px, #ffffff 10px 17px, #1b3a6b 17px 27px, #ffffff 27px 34px)",
+        }}
+      />
 
       <header
         className="ls-header"
@@ -242,22 +253,35 @@ export default function LabelStudio() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+          {/* Postage-stamp mark: white perforated paper around a printed navy tile */}
           <div
+            aria-hidden="true"
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 9,
-              background: "#17202b",
-              color: "#fff",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: MONO,
-              fontWeight: 700,
-              fontSize: 16,
+              background: "#fff",
+              padding: 3,
+              borderRadius: 4,
+              border: "1.5px dotted #b7c2d4",
+              boxShadow: "0 1px 2px rgba(27,58,107,0.18)",
             }}
           >
-            L
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 2,
+                background: "#1b3a6b",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: MONO,
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              L
+            </div>
           </div>
           <div>
             <div
@@ -269,7 +293,7 @@ export default function LabelStudio() {
                 color: "#7a8595",
               }}
             >
-              Label Studio
+              Shipping Label Studio
             </div>
             <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.1 }}>
               4 × 6 Mailing Label
@@ -331,7 +355,7 @@ export default function LabelStudio() {
               border: "1px solid #d9e0e8",
               borderRadius: 18,
               backgroundColor: "#e7ecf2",
-              backgroundImage: "radial-gradient(circle, rgba(23,32,43,0.055) 1px, transparent 1px)",
+              backgroundImage: "radial-gradient(circle, rgba(27,58,107,0.055) 1px, transparent 1px)",
               backgroundSize: "22px 22px",
               display: "flex",
               flexDirection: "column",
@@ -381,7 +405,7 @@ export default function LabelStudio() {
                   aspectRatio: "3 / 2",
                   background: "#ffffff",
                   borderRadius: 6,
-                  boxShadow: "0 22px 44px -20px rgba(23,32,43,0.4), 0 2px 6px rgba(23,32,43,0.08)",
+                  boxShadow: "0 22px 44px -20px rgba(27,58,107,0.4), 0 2px 6px rgba(27,58,107,0.08)",
                   position: "relative",
                   overflow: "hidden",
                 }}
@@ -414,10 +438,10 @@ export default function LabelStudio() {
                 )}
 
                 <div style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none" }}>
-                  <div style={{ ...cornerBase, top: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
-                  <div style={{ ...cornerBase, top: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
-                  <div style={{ ...cornerBase, bottom: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
-                  <div style={{ ...cornerBase, bottom: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
+                  <div style={{ ...cornerBase, top: 8, left: 8, borderLeft: "1.5px solid #c8102e", borderTop: "1.5px solid #c8102e" }} />
+                  <div style={{ ...cornerBase, top: 8, right: 8, borderRight: "1.5px solid #c8102e", borderTop: "1.5px solid #c8102e" }} />
+                  <div style={{ ...cornerBase, bottom: 8, left: 8, borderLeft: "1.5px solid #c8102e", borderBottom: "1.5px solid #c8102e" }} />
+                  <div style={{ ...cornerBase, bottom: 8, right: 8, borderRight: "1.5px solid #c8102e", borderBottom: "1.5px solid #c8102e" }} />
                 </div>
               </div>
             </div>
@@ -471,7 +495,7 @@ export default function LabelStudio() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: includeReturn ? "flex-end" : "flex-start",
-                    background: includeReturn ? "#17202b" : "#cbd3dd",
+                    background: includeReturn ? "#1b3a6b" : "#cbd3dd",
                     transition: "all .18s",
                   }}
                 >
@@ -600,7 +624,7 @@ export default function LabelStudio() {
             </div>
           </div>
 
-          <div style={{ padding: "16px 24px", borderTop: "1px solid #e6ebf1", background: "#f6f8fb" }}>
+          <div style={{ padding: "16px 24px", borderTop: "2px dashed #cdd7e4", background: "#f6f8fb" }}>
             <button
               type="button"
               className="ls-download"
@@ -610,7 +634,7 @@ export default function LabelStudio() {
                 padding: 14,
                 border: "none",
                 borderRadius: 12,
-                background: "#17202b",
+                background: "#1b3a6b",
                 color: "#fff",
                 fontSize: 15,
                 fontWeight: 600,
