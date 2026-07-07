@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type CSSProperties } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import jsPDF from "jspdf"
 
 const MONO = "var(--font-jetbrains), monospace"
@@ -49,6 +49,52 @@ const inputStyle: CSSProperties = {
 
 const cornerBase: CSSProperties = { position: "absolute", width: 11, height: 11 }
 
+// Single source of truth for the exported file — used by both the live preview and Download.
+function buildLabelPdf(
+  ret: Address,
+  addr: Address,
+  includeReturn: boolean,
+  fontSize: number,
+  lineHeight: number,
+  alignment: "center" | "left",
+): jsPDF {
+  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [288, 432] })
+
+  const pageWidth = 432 // 6 in
+  const pageHeight = 288 // 4 in
+
+  const rLines = includeReturn
+    ? [ret.line1, ret.line2, ret.line3, ret.line4].filter((line) => line.trim())
+    : []
+  pdf.setFont("helvetica", "normal")
+  pdf.setFontSize(10)
+  const returnLineHeight = 10 * 1.3
+  rLines.forEach((line, index) => {
+    pdf.text(line, 20, 24 + index * returnLineHeight)
+  })
+
+  pdf.setFontSize(fontSize)
+  const centerX = pageWidth / 2
+  const centerY = pageHeight / 2
+
+  const mainLineHeight = fontSize * lineHeight
+  const lines = [addr.line1, addr.line2, addr.line3, addr.line4].filter((line) => line.trim())
+  const totalHeight = mainLineHeight * (lines.length - 1)
+  const startY = centerY - totalHeight / 2
+
+  lines.forEach((line, index) => {
+    let x: number
+    if (alignment === "center") {
+      x = centerX - pdf.getTextWidth(line) / 2
+    } else {
+      x = 40
+    }
+    pdf.text(line, x, startY + index * mainLineHeight)
+  })
+
+  return pdf
+}
+
 export default function LabelStudio() {
   const [ret, setRet] = useState<Address>({ ...DEFAULTS.ret })
   const [addr, setAddr] = useState<Address>({ ...DEFAULTS.addr })
@@ -58,10 +104,69 @@ export default function LabelStudio() {
   const [alignment, setAlignment] = useState<"center" | "left">("center")
 
   const isCenter = alignment === "center"
-  const returnLines = includeReturn
-    ? [ret.line1, ret.line2, ret.line3, ret.line4].filter((l) => l.trim())
-    : []
-  const mainLines = [addr.line1, addr.line2, addr.line3, addr.line4].filter((l) => l.trim())
+
+  // Render the real exported PDF into a canvas so the preview is a pixel-accurate
+  // WYSIWYG of the downloaded file — no browser PDF-viewer chrome. Debounced so
+  // typing / dragging sliders doesn't thrash the renderer.
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null)
+  const [sizeTick, setSizeTick] = useState(0)
+  const [rendered, setRendered] = useState(false)
+
+  // Re-render when the canvas box resizes (initial layout + responsive reflow).
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const ro = new ResizeObserver(() => setSizeTick((t) => t + 1))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      try {
+        const pdfjs = await import("pdfjs-dist")
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
+
+        const doc = buildLabelPdf(ret, addr, includeReturn, fontSize, lineHeight, alignment)
+        const data = new Uint8Array(doc.output("arraybuffer") as ArrayBuffer)
+        const loadingTask = pdfjs.getDocument({ data })
+        const pdf = await loadingTask.promise
+        const page = await pdf.getPage(1)
+        if (cancelled) {
+          loadingTask.destroy()
+          return
+        }
+
+        const cssW = canvas.clientWidth || 480
+        const dpr = Math.min(window.devicePixelRatio || 1, 2)
+        const base = page.getViewport({ scale: 1 })
+        const viewport = page.getViewport({ scale: (cssW * dpr) / base.width })
+        canvas.width = Math.round(viewport.width)
+        canvas.height = Math.round(viewport.height)
+        const ctx = canvas.getContext("2d")
+        if (!ctx) return
+
+        renderTaskRef.current?.cancel()
+        const task = page.render({ canvas, canvasContext: ctx, viewport })
+        renderTaskRef.current = task
+        await task.promise
+        loadingTask.destroy()
+        if (!cancelled) setRendered(true)
+      } catch (err) {
+        if ((err as { name?: string })?.name !== "RenderingCancelledException") {
+          console.error("PDF preview render failed", err)
+        }
+      }
+    }, 200)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [ret, addr, includeReturn, fontSize, lineHeight, alignment, sizeTick])
 
   const reset = () => {
     setRet({ ...DEFAULTS.ret })
@@ -78,42 +183,7 @@ export default function LabelStudio() {
   }
 
   const download = () => {
-    const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [288, 432] })
-
-    const pageWidth = 432 // 6 in
-    const pageHeight = 288 // 4 in
-
-    const rLines = includeReturn
-      ? [ret.line1, ret.line2, ret.line3, ret.line4].filter((line) => line.trim())
-      : []
-    pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(10)
-    const returnLineHeight = 10 * 1.3
-    rLines.forEach((line, index) => {
-      pdf.text(line, 20, 24 + index * returnLineHeight)
-    })
-
-    pdf.setFontSize(fontSize)
-    const centerX = pageWidth / 2
-    const centerY = pageHeight / 2
-
-    const mainLineHeight = fontSize * lineHeight
-    const lines = [addr.line1, addr.line2, addr.line3, addr.line4].filter((line) => line.trim())
-    const totalHeight = mainLineHeight * (lines.length - 1)
-    const startY = centerY - totalHeight / 2
-
-    lines.forEach((line, index) => {
-      let x: number
-      if (alignment === "center") {
-        const textWidth = pdf.getTextWidth(line)
-        x = centerX - textWidth / 2
-      } else {
-        x = 40
-      }
-      pdf.text(line, x, startY + index * mainLineHeight)
-    })
-
-    pdf.save("mailing-label-4x6.pdf")
+    buildLabelPdf(ret, addr, includeReturn, fontSize, lineHeight, alignment).save("mailing-label-4x6.pdf")
   }
 
   const segBase: CSSProperties = {
@@ -299,43 +369,41 @@ export default function LabelStudio() {
                   borderRadius: 6,
                   boxShadow: "0 22px 44px -20px rgba(23,32,43,0.4), 0 2px 6px rgba(23,32,43,0.08)",
                   position: "relative",
-                  padding: 22,
-                  display: "flex",
-                  flexDirection: "column",
                   overflow: "hidden",
                 }}
               >
-                <div style={{ ...cornerBase, top: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
-                <div style={{ ...cornerBase, top: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
-                <div style={{ ...cornerBase, bottom: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
-                <div style={{ ...cornerBase, bottom: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
-
-                <div style={{ textAlign: "left", position: "relative", zIndex: 1 }}>
-                  {returnLines.map((line, i) => (
-                    <div key={i} style={{ fontSize: 10, lineHeight: 1.3, color: "#111111" }}>
-                      {line}
-                    </div>
-                  ))}
-                </div>
-
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: isCenter ? "center" : "flex-start",
-                    position: "relative",
-                    zIndex: 1,
-                    minHeight: 0,
-                  }}
-                >
-                  <div style={{ textAlign: isCenter ? "center" : "left", paddingLeft: isCenter ? 0 : 8, maxWidth: "100%" }}>
-                    {mainLines.map((line, i) => (
-                      <div key={i} style={{ fontSize, lineHeight, color: "#111111" }}>
-                        {line}
-                      </div>
-                    ))}
+                <canvas
+                  ref={canvasRef}
+                  aria-label="Live preview of the exported PDF label"
+                  role="img"
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", background: "#ffffff" }}
+                />
+                {!rendered && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      zIndex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: MONO,
+                      fontSize: 10,
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "#c2ccd8",
+                      background: "#ffffff",
+                    }}
+                  >
+                    Rendering…
                   </div>
+                )}
+
+                <div style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none" }}>
+                  <div style={{ ...cornerBase, top: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
+                  <div style={{ ...cornerBase, top: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
+                  <div style={{ ...cornerBase, bottom: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
+                  <div style={{ ...cornerBase, bottom: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
                 </div>
               </div>
             </div>
