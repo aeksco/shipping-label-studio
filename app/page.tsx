@@ -28,6 +28,8 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
   .ls-desk { padding: 22px 14px !important; }
   .ls-vdim { display: none !important; }
   .ls-scroll { overflow: visible !important; padding: 18px !important; }
+  .ls-cols { flex-direction: column !important; gap: 18px !important; }
+  .ls-sliders { flex-direction: column !important; gap: 14px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ls-root * { transition: none !important; }
@@ -451,8 +453,8 @@ export default function LabelStudio() {
         <aside
           className="ls-aside"
           style={{
-            flex: "0 1 420px",
-            minWidth: 320,
+            flex: "0 1 600px",
+            minWidth: 480,
             display: "flex",
             flexDirection: "column",
             border: "1px solid #d9e0e8",
@@ -466,50 +468,63 @@ export default function LabelStudio() {
             className="ls-scroll"
             style={{ flex: 1, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 24 }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 11,
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase",
-                    color: "#7a8595",
-                  }}
-                >
-                  Return Address
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={includeReturn}
-                  title="Include return address on label"
-                  onClick={() => setIncludeReturn((v) => !v)}
-                  style={{
-                    width: 38,
-                    height: 22,
-                    borderRadius: 999,
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: includeReturn ? "flex-end" : "flex-start",
-                    background: includeReturn ? "#1b3a6b" : "#cbd3dd",
-                    transition: "all .18s",
-                  }}
-                >
-                  <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
-                </button>
-              </div>
-              {includeReturn && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                  <input className="ls-input" value={ret.line1} onChange={(e) => setRet({ ...ret, line1: e.target.value })} placeholder="Your name" style={inputStyle} />
-                  <input className="ls-input" value={ret.line2} onChange={(e) => setRet({ ...ret, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
-                  <input className="ls-input" value={ret.line3} onChange={(e) => setRet({ ...ret, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
-                  <input className="ls-input" value={ret.line4} onChange={(e) => setRet({ ...ret, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
+            <div className="ls-cols" style={{ display: "flex", gap: 22, alignItems: "flex-start" }}>
+              {/* Return address column */}
+              <div className="ls-col" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 11 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 22 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#7a8595" }}>
+                    Return Address
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={includeReturn}
+                    title="Include return address on label"
+                    onClick={() => setIncludeReturn((v) => !v)}
+                    style={{
+                      width: 38,
+                      height: 22,
+                      borderRadius: 999,
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: includeReturn ? "flex-end" : "flex-start",
+                      background: includeReturn ? "#1b3a6b" : "#cbd3dd",
+                      transition: "all .18s",
+                    }}
+                  >
+                    <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+                  </button>
                 </div>
-              )}
+                {includeReturn ? (
+                  <>
+                    <input className="ls-input" value={ret.line1} onChange={(e) => setRet({ ...ret, line1: e.target.value })} placeholder="Your name" style={inputStyle} />
+                    <input className="ls-input" value={ret.line2} onChange={(e) => setRet({ ...ret, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
+                    <input className="ls-input" value={ret.line3} onChange={(e) => setRet({ ...ret, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
+                    <input className="ls-input" value={ret.line4} onChange={(e) => setRet({ ...ret, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
+                  </>
+                ) : (
+                  <div style={{ fontSize: 12.5, lineHeight: 1.45, color: "#94a1b2", background: "#f8fafc", border: "1px dashed #dbe2ea", borderRadius: 9, padding: "11px 13px" }}>
+                    Hidden — won&rsquo;t print on this label. Toggle to add it back.
+                  </div>
+                )}
+              </div>
+
+              {/* Recipient address column */}
+              <div className="ls-col" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 11 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 22 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#7a8595" }}>
+                    Recipient Address
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: "#b3bdca" }}>02</span>
+                </div>
+                <input className="ls-input" value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} placeholder="Recipient name" style={inputStyle} />
+                <input className="ls-input" value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
+                <input className="ls-input" value={addr.line3} onChange={(e) => setAddr({ ...addr, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
+                <input className="ls-input" value={addr.line4} onChange={(e) => setAddr({ ...addr, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
+              </div>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -540,29 +555,6 @@ export default function LabelStudio() {
               <div style={{ flex: 1, height: 1, background: "#e6ebf1" }} />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 11,
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase",
-                    color: "#7a8595",
-                  }}
-                >
-                  Recipient Address
-                </span>
-                <span style={{ fontFamily: MONO, fontSize: 10, color: "#b3bdca" }}>02</span>
-              </div>
-              <input className="ls-input" value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} placeholder="Recipient name" style={inputStyle} />
-              <input className="ls-input" value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
-              <input className="ls-input" value={addr.line3} onChange={(e) => setAddr({ ...addr, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
-              <input className="ls-input" value={addr.line4} onChange={(e) => setAddr({ ...addr, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
-            </div>
-
-            <div style={{ height: 1, background: "#e6ebf1" }} />
-
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <span
                 style={{
@@ -588,38 +580,40 @@ export default function LabelStudio() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Font size</span>
-                  <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{fontSize}px</span>
+              <div className="ls-sliders" style={{ display: "flex", gap: 22 }}>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Font size</span>
+                    <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{fontSize}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={36}
+                    step={1}
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                    aria-label="Font size"
+                    style={{ width: "100%", height: 5, cursor: "pointer" }}
+                  />
                 </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={36}
-                  step={1}
-                  value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))}
-                  aria-label="Font size"
-                  style={{ width: "100%", height: 5, cursor: "pointer" }}
-                />
-              </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Line height</span>
-                  <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{lineHeight.toFixed(1)}</span>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Line height</span>
+                    <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{lineHeight.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.8}
+                    max={2}
+                    step={0.1}
+                    value={lineHeight}
+                    onChange={(e) => setLineHeight(Number(e.target.value))}
+                    aria-label="Line height"
+                    style={{ width: "100%", height: 5, cursor: "pointer" }}
+                  />
                 </div>
-                <input
-                  type="range"
-                  min={0.8}
-                  max={2}
-                  step={0.1}
-                  value={lineHeight}
-                  onChange={(e) => setLineHeight(Number(e.target.value))}
-                  aria-label="Line height"
-                  style={{ width: "100%", height: 5, cursor: "pointer" }}
-                />
               </div>
             </div>
           </div>
