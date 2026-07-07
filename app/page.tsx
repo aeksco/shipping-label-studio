@@ -1,59 +1,104 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { Download, AlignCenter, AlignLeft } from "lucide-react"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useState, type CSSProperties } from "react"
 import jsPDF from "jspdf"
 
-export default function LabelPrinter() {
-  const [returnAddress, setReturnAddress] = useState({
-    line1: "John Doe",
-    line2: "123 Main Street",
-    line3: "Apt. 1B",
-    line4: "Anytown, USA 12345",
-  })
-  const [address, setAddress] = useState({
-    line1: "Jane Doe",
-    line2: "456 Main Street",
-    line3: "Apt. 2C",
-    line4: "Anytown, USA 12345",
-  })
+const MONO = "var(--font-jetbrains), monospace"
+const SANS = "var(--font-instrument), system-ui, sans-serif"
+
+type Address = { line1: string; line2: string; line3: string; line4: string }
+
+const DEFAULTS: { ret: Address; addr: Address } = {
+  ret: { line1: "John Doe", line2: "123 Main Street", line3: "Apt. 1B", line4: "Anytown, USA 12345" },
+  addr: { line1: "Jane Doe", line2: "456 Main Street", line3: "Apt. 2C", line4: "Anytown, USA 12345" },
+}
+
+const SCOPED_CSS = `
+input[type="range"] { -webkit-appearance: none; appearance: none; background: #d9e0e8; border-radius: 999px; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 17px; height: 17px; border-radius: 50%; background: #17202b; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(23,32,43,0.35); cursor: pointer; }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #17202b; border: 3px solid #fff; cursor: pointer; }
+.ls-reset:hover, .ls-swap:hover { border-color: #b8c2ce !important; color: #17202b !important; }
+.ls-input:focus { border-color: #17202b !important; box-shadow: 0 0 0 3px rgba(23,32,43,0.08) !important; }
+.ls-download:hover { background: #29323f !important; }
+@media (max-width: 720px) {
+  .ls-header { padding: 12px 16px !important; }
+  .ls-main { padding: 14px !important; gap: 16px !important; flex-direction: column !important; }
+  .ls-preview { min-width: 0 !important; flex-basis: auto !important; }
+  .ls-aside { min-width: 0 !important; flex-basis: auto !important; }
+  .ls-desk { padding: 22px 14px !important; }
+  .ls-vdim { display: none !important; }
+  .ls-scroll { overflow: visible !important; padding: 18px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-root * { transition: none !important; }
+}
+`
+
+const inputStyle: CSSProperties = {
+  width: "100%",
+  padding: "11px 13px",
+  border: "1px solid #d9e0e8",
+  borderRadius: 9,
+  background: "#f8fafc",
+  fontSize: 14,
+  fontFamily: "inherit",
+  color: "#17202b",
+  outline: "none",
+  transition: "border-color .15s, box-shadow .15s",
+}
+
+const cornerBase: CSSProperties = { position: "absolute", width: 11, height: 11 }
+
+export default function LabelStudio() {
+  const [ret, setRet] = useState<Address>({ ...DEFAULTS.ret })
+  const [addr, setAddr] = useState<Address>({ ...DEFAULTS.addr })
+  const [includeReturn, setIncludeReturn] = useState(true)
   const [fontSize, setFontSize] = useState(18)
   const [lineHeight, setLineHeight] = useState(1.2)
   const [alignment, setAlignment] = useState<"center" | "left">("center")
 
-  const generatePDF = () => {
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "pt",
-      format: [288, 432], // 4 inches x 6 inches at 72 DPI
-    })
+  const isCenter = alignment === "center"
+  const returnLines = includeReturn
+    ? [ret.line1, ret.line2, ret.line3, ret.line4].filter((l) => l.trim())
+    : []
+  const mainLines = [addr.line1, addr.line2, addr.line3, addr.line4].filter((l) => l.trim())
 
-    const pageWidth = 432 // 6 inches
-    const pageHeight = 288 // 4 inches
+  const reset = () => {
+    setRet({ ...DEFAULTS.ret })
+    setAddr({ ...DEFAULTS.addr })
+    setIncludeReturn(true)
+    setFontSize(18)
+    setLineHeight(1.2)
+    setAlignment("center")
+  }
 
-    const returnLines = [returnAddress.line1, returnAddress.line2, returnAddress.line3, returnAddress.line4].filter(
-      (line) => line.trim(),
-    )
+  const swap = () => {
+    setRet(addr)
+    setAddr(ret)
+  }
+
+  const download = () => {
+    const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [288, 432] })
+
+    const pageWidth = 432 // 6 in
+    const pageHeight = 288 // 4 in
+
+    const rLines = includeReturn
+      ? [ret.line1, ret.line2, ret.line3, ret.line4].filter((line) => line.trim())
+      : []
     pdf.setFont("helvetica", "normal")
     pdf.setFontSize(10)
     const returnLineHeight = 10 * 1.3
-    returnLines.forEach((line, index) => {
+    rLines.forEach((line, index) => {
       pdf.text(line, 20, 24 + index * returnLineHeight)
     })
 
-    // Main address in center
     pdf.setFontSize(fontSize)
     const centerX = pageWidth / 2
     const centerY = pageHeight / 2
 
     const mainLineHeight = fontSize * lineHeight
-    const lines = [address.line1, address.line2, address.line3, address.line4].filter((line) => line.trim())
+    const lines = [addr.line1, addr.line2, addr.line3, addr.line4].filter((line) => line.trim())
     const totalHeight = mainLineHeight * (lines.length - 1)
     const startY = centerY - totalHeight / 2
 
@@ -63,7 +108,7 @@ export default function LabelPrinter() {
         const textWidth = pdf.getTextWidth(line)
         x = centerX - textWidth / 2
       } else {
-        x = 40 // Left margin
+        x = 40
       }
       pdf.text(line, x, startY + index * mainLineHeight)
     })
@@ -71,148 +116,436 @@ export default function LabelPrinter() {
     pdf.save("mailing-label-4x6.pdf")
   }
 
+  const segBase: CSSProperties = {
+    flex: 1,
+    padding: "9px 0",
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    transition: "all .15s",
+  }
+  const segActive: CSSProperties = { background: "#17202b", color: "#fff", boxShadow: "0 1px 3px rgba(23,32,43,0.2)" }
+  const segInactive: CSSProperties = { background: "transparent", color: "#5b6675", boxShadow: "none" }
+
   return (
-    <div className="min-h-screen bg-background p-8 flex items-center justify-center">
-      <div className="w-full max-w-5xl flex gap-6 flex-col lg:flex-row">
-        <Card className="flex-1">
-          <CardHeader>
-            <CardTitle className="text-xl text-center">Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="border-2 border-dashed border-border rounded-lg bg-white aspect-[3/2] flex flex-col p-4 relative">
-              {/* Return address - top left */}
-              <div className="text-left">
-                {[returnAddress.line1, returnAddress.line2, returnAddress.line3, returnAddress.line4]
-                  .filter((line) => line.trim())
-                  .map((line, index) => (
-                    <div key={index} style={{ fontSize: "10px", lineHeight: 1.3 }} className="text-black">
+    <div
+      className="ls-root"
+      style={{
+        minHeight: "100vh",
+        background: "#eaeef3",
+        fontFamily: SANS,
+        color: "#17202b",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: SCOPED_CSS }} />
+
+      <header
+        className="ls-header"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
+          padding: "16px 28px",
+          borderBottom: "1px solid #d9e0e8",
+          background: "#f6f8fb",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 9,
+              background: "#17202b",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: MONO,
+              fontWeight: 700,
+              fontSize: 16,
+            }}
+          >
+            L
+          </div>
+          <div>
+            <div
+              style={{
+                fontFamily: MONO,
+                fontSize: 10,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "#7a8595",
+              }}
+            >
+              Label Studio
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.1 }}>
+              4 × 6 Mailing Label
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span
+            style={{
+              fontFamily: MONO,
+              fontSize: 10.5,
+              letterSpacing: "0.03em",
+              color: "#7a8595",
+              border: "1px solid #d9e0e8",
+              borderRadius: 999,
+              padding: "6px 13px",
+            }}
+          >
+            4 × 6 in · Landscape · 72 DPI
+          </span>
+          <button
+            type="button"
+            className="ls-reset"
+            onClick={reset}
+            style={{
+              fontFamily: MONO,
+              fontSize: 11,
+              letterSpacing: "0.04em",
+              color: "#5b6675",
+              background: "transparent",
+              border: "1px solid #d9e0e8",
+              borderRadius: 8,
+              padding: "7px 13px",
+              cursor: "pointer",
+              transition: "all .15s",
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </header>
+
+      <main
+        className="ls-main"
+        style={{
+          flex: 1,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 26,
+          padding: 26,
+          alignItems: "stretch",
+        }}
+      >
+        <section className="ls-preview" style={{ flex: "1 1 460px", minWidth: 340, display: "flex", order: 2 }}>
+          <div
+            className="ls-desk"
+            style={{
+              flex: 1,
+              border: "1px solid #d9e0e8",
+              borderRadius: 18,
+              backgroundColor: "#e7ecf2",
+              backgroundImage: "radial-gradient(circle, rgba(23,32,43,0.055) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "44px 40px",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 16,
+                left: 20,
+                fontFamily: MONO,
+                fontSize: 10,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "#94a1b2",
+              }}
+            >
+              Live Preview
+            </div>
+
+            <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", color: "#94a1b2", marginBottom: 9 }}>
+              ← 6 in →
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", maxWidth: 560 }}>
+              <div
+                className="ls-vdim"
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  color: "#94a1b2",
+                  writingMode: "vertical-rl",
+                  transform: "rotate(180deg)",
+                }}
+              >
+                ← 4 in →
+              </div>
+
+              <div
+                style={{
+                  flex: 1,
+                  aspectRatio: "3 / 2",
+                  background: "#ffffff",
+                  borderRadius: 6,
+                  boxShadow: "0 22px 44px -20px rgba(23,32,43,0.4), 0 2px 6px rgba(23,32,43,0.08)",
+                  position: "relative",
+                  padding: 22,
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
+              >
+                <div style={{ ...cornerBase, top: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
+                <div style={{ ...cornerBase, top: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderTop: "1.5px solid #0ea5a0" }} />
+                <div style={{ ...cornerBase, bottom: 8, left: 8, borderLeft: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
+                <div style={{ ...cornerBase, bottom: 8, right: 8, borderRight: "1.5px solid #0ea5a0", borderBottom: "1.5px solid #0ea5a0" }} />
+
+                <div style={{ textAlign: "left", position: "relative", zIndex: 1 }}>
+                  {returnLines.map((line, i) => (
+                    <div key={i} style={{ fontSize: 10, lineHeight: 1.3, color: "#111111" }}>
                       {line}
                     </div>
                   ))}
-              </div>
-              {/* Main address */}
-              <div className={`flex-1 flex items-center ${alignment === "center" ? "justify-center" : "justify-start pl-4"}`}>
-                <div className={alignment === "center" ? "text-center" : "text-left"}>
-                  {[address.line1, address.line2, address.line3, address.line4]
-                    .filter((line) => line.trim())
-                    .map((line, index) => (
-                      <div key={index} style={{ fontSize: `${fontSize}px`, lineHeight }} className="text-black">
+                </div>
+
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isCenter ? "center" : "flex-start",
+                    position: "relative",
+                    zIndex: 1,
+                    minHeight: 0,
+                  }}
+                >
+                  <div style={{ textAlign: isCenter ? "center" : "left", paddingLeft: isCenter ? 0 : 8, maxWidth: "100%" }}>
+                    {mainLines.map((line, i) => (
+                      <div key={i} style={{ fontSize, lineHeight, color: "#111111" }}>
                         {line}
                       </div>
                     ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card className="flex-1">
-          <CardHeader>
-            <CardTitle className="text-xl text-center">4x6 Mailing Label Printer</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Return Address</Label>
-              <Input
-                value={returnAddress.line1}
-                onChange={(e) => setReturnAddress({ ...returnAddress, line1: e.target.value })}
-                placeholder="Your Name"
-              />
-              <Input
-                value={returnAddress.line2}
-                onChange={(e) => setReturnAddress({ ...returnAddress, line2: e.target.value })}
-                placeholder="Street Address"
-              />
-              <Input
-                value={returnAddress.line3}
-                onChange={(e) => setReturnAddress({ ...returnAddress, line3: e.target.value })}
-                placeholder="Apt/Suite"
-              />
-              <Input
-                value={returnAddress.line4}
-                onChange={(e) => setReturnAddress({ ...returnAddress, line4: e.target.value })}
-                placeholder="City, State ZIP"
-              />
-            </div>
-
-            <div className="border-t pt-4 space-y-3">
-              <Label className="text-sm font-semibold">Recipient Address</Label>
-              <Input
-                value={address.line1}
-                onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-                placeholder="Company Name"
-              />
-              <Input
-                value={address.line2}
-                onChange={(e) => setAddress({ ...address, line2: e.target.value })}
-                placeholder="Attention"
-              />
-              <Input
-                value={address.line3}
-                onChange={(e) => setAddress({ ...address, line3: e.target.value })}
-                placeholder="Street Address"
-              />
-              <Input
-                value={address.line4}
-                onChange={(e) => setAddress({ ...address, line4: e.target.value })}
-                placeholder="City, State ZIP"
-              />
-            </div>
-
-            <div className="border-t pt-4 space-y-4">
-              <div className="space-y-2">
-                <Label>Recipient Alignment</Label>
-                <ToggleGroup
-                  type="single"
-                  value={alignment}
-                  onValueChange={(value) => value && setAlignment(value as "center" | "left")}
-                  className="justify-start"
+        <aside
+          className="ls-aside"
+          style={{
+            flex: "0 1 420px",
+            minWidth: 320,
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid #d9e0e8",
+            borderRadius: 18,
+            background: "#ffffff",
+            overflow: "hidden",
+            order: 1,
+          }}
+        >
+          <div
+            className="ls-scroll"
+            style={{ flex: 1, overflow: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 24 }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: "#7a8595",
+                  }}
                 >
-                  <ToggleGroupItem value="center" aria-label="Center align">
-                    <AlignCenter className="h-4 w-4 mr-2" />
-                    Center
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="left" aria-label="Left align">
-                    <AlignLeft className="h-4 w-4 mr-2" />
-                    Left
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                  Return Address
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={includeReturn}
+                  title="Include return address on label"
+                  onClick={() => setIncludeReturn((v) => !v)}
+                  style={{
+                    width: 38,
+                    height: 22,
+                    borderRadius: 999,
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: includeReturn ? "flex-end" : "flex-start",
+                    background: includeReturn ? "#17202b" : "#cbd3dd",
+                    transition: "all .18s",
+                  }}
+                >
+                  <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+                </button>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Font Size</Label>
-                  <span className="text-sm text-muted-foreground">{fontSize}px</span>
+              {includeReturn && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                  <input className="ls-input" value={ret.line1} onChange={(e) => setRet({ ...ret, line1: e.target.value })} placeholder="Your name" style={inputStyle} />
+                  <input className="ls-input" value={ret.line2} onChange={(e) => setRet({ ...ret, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
+                  <input className="ls-input" value={ret.line3} onChange={(e) => setRet({ ...ret, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
+                  <input className="ls-input" value={ret.line4} onChange={(e) => setRet({ ...ret, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
                 </div>
-                <Slider
+              )}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, height: 1, background: "#e6ebf1" }} />
+              <button
+                type="button"
+                className="ls-swap"
+                onClick={swap}
+                title="Swap return & recipient"
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 11,
+                  letterSpacing: "0.04em",
+                  color: "#5b6675",
+                  background: "#f1f5f9",
+                  border: "1px solid #d9e0e8",
+                  borderRadius: 999,
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all .15s",
+                }}
+              >
+                <span style={{ fontSize: 13 }}>⇅</span> Swap
+              </button>
+              <div style={{ flex: 1, height: 1, background: "#e6ebf1" }} />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: "#7a8595",
+                  }}
+                >
+                  Recipient Address
+                </span>
+                <span style={{ fontFamily: MONO, fontSize: 10, color: "#b3bdca" }}>02</span>
+              </div>
+              <input className="ls-input" value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} placeholder="Recipient name" style={inputStyle} />
+              <input className="ls-input" value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
+              <input className="ls-input" value={addr.line3} onChange={(e) => setAddr({ ...addr, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
+              <input className="ls-input" value={addr.line4} onChange={(e) => setAddr({ ...addr, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
+            </div>
+
+            <div style={{ height: 1, background: "#e6ebf1" }} />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 11,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "#7a8595",
+                }}
+              >
+                Typography
+              </span>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Recipient alignment</span>
+                <div style={{ display: "flex", gap: 4, padding: 4, background: "#eaeef3", borderRadius: 11, border: "1px solid #dde4ec" }}>
+                  <button type="button" onClick={() => setAlignment("center")} style={{ ...segBase, ...(isCenter ? segActive : segInactive) }}>
+                    Centered
+                  </button>
+                  <button type="button" onClick={() => setAlignment("left")} style={{ ...segBase, ...(!isCenter ? segActive : segInactive) }}>
+                    Left
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Font size</span>
+                  <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{fontSize}px</span>
+                </div>
+                <input
+                  type="range"
                   min={10}
                   max={36}
                   step={1}
-                  value={[fontSize]}
-                  onValueChange={(value) => setFontSize(value[0])}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  aria-label="Font size"
+                  style={{ width: "100%", height: 5, cursor: "pointer" }}
                 />
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Line Height</Label>
-                  <span className="text-sm text-muted-foreground">{lineHeight.toFixed(1)}</span>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Line height</span>
+                  <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{lineHeight.toFixed(1)}</span>
                 </div>
-                <Slider
+                <input
+                  type="range"
                   min={0.8}
                   max={2}
                   step={0.1}
-                  value={[lineHeight]}
-                  onValueChange={(value) => setLineHeight(value[0])}
+                  value={lineHeight}
+                  onChange={(e) => setLineHeight(Number(e.target.value))}
+                  aria-label="Line height"
+                  style={{ width: "100%", height: 5, cursor: "pointer" }}
                 />
               </div>
             </div>
+          </div>
 
-            <Button onClick={generatePDF} className="w-full" size="lg">
-              <Download className="mr-2 h-4 w-4" />
-              Download 4x6 PDF Label
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          <div style={{ padding: "16px 24px", borderTop: "1px solid #e6ebf1", background: "#f6f8fb" }}>
+            <button
+              type="button"
+              className="ls-download"
+              onClick={download}
+              style={{
+                width: "100%",
+                padding: 14,
+                border: "none",
+                borderRadius: 12,
+                background: "#17202b",
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 600,
+                fontFamily: "inherit",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 9,
+                transition: "background .15s",
+              }}
+            >
+              <span style={{ fontFamily: MONO, fontWeight: 700 }}>↓</span> Download 4 × 6 PDF
+            </button>
+          </div>
+        </aside>
+      </main>
     </div>
   )
 }
