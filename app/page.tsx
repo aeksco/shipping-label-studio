@@ -23,8 +23,8 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 @media (max-width: 720px) {
   .ls-header { padding: 12px 16px !important; }
   .ls-main { padding: 14px !important; gap: 16px !important; flex-direction: column !important; }
-  .ls-preview { min-width: 0 !important; flex-basis: auto !important; }
-  .ls-aside { min-width: 0 !important; flex-basis: auto !important; }
+  .ls-preview { min-width: 0 !important; flex: none !important; display: block !important; }
+  .ls-aside { min-width: 0 !important; flex: none !important; }
   .ls-desk { padding: 22px 14px !important; }
   .ls-vdim { display: none !important; }
   .ls-scroll { overflow: visible !important; padding: 18px !important; }
