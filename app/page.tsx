@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type CSSProperties } from "react"
+import { Heart } from "lucide-react"
 import jsPDF from "jspdf"
 
 const MONO = "var(--font-jetbrains), monospace"
@@ -20,6 +21,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .ls-reset:hover, .ls-swap:hover { border-color: #b8c2ce !important; color: #1b3a6b !important; }
 .ls-input:focus { border-color: #1b3a6b !important; box-shadow: 0 0 0 3px rgba(27,58,107,0.08) !important; }
 .ls-download:hover { background: #264f8f !important; }
+.ls-credit:hover { text-decoration: underline !important; }
 @media (max-width: 720px) {
   .ls-header { padding: 12px 16px !important; }
   .ls-main { padding: 14px !important; gap: 16px !important; flex-direction: column !important; }
@@ -51,49 +53,63 @@ const inputStyle: CSSProperties = {
 
 const cornerBase: CSSProperties = { position: "absolute", width: 11, height: 11 }
 
-// Single source of truth for the exported file — used by both the live preview and Download.
-function buildLabelPdf(
-  ret: Address,
-  addr: Address,
-  includeReturn: boolean,
-  fontSize: number,
-  lineHeight: number,
-  alignment: "center" | "left",
-): jsPDF {
-  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [288, 432] })
+type LabelOpts = {
+  ret: Address
+  addr: Address
+  includeReturn: boolean
+  fontSize: number
+  lineHeight: number
+  alignment: "center" | "left"
+  returnFontSize: number
+  returnLineHeight: number
+}
 
-  const pageWidth = 432 // 6 in
-  const pageHeight = 288 // 4 in
-
-  const rLines = includeReturn
-    ? [ret.line1, ret.line2, ret.line3, ret.line4].filter((line) => line.trim())
+// Draw one label into the region (ox, oy) sized w × h (points).
+function drawLabel(pdf: jsPDF, ox: number, oy: number, w: number, h: number, o: LabelOpts) {
+  const rLines = o.includeReturn
+    ? [o.ret.line1, o.ret.line2, o.ret.line3, o.ret.line4].filter((line) => line.trim())
     : []
   pdf.setFont("helvetica", "normal")
-  pdf.setFontSize(10)
-  const returnLineHeight = 10 * 1.3
+  pdf.setFontSize(o.returnFontSize)
+  const returnLineHeight = o.returnFontSize * o.returnLineHeight
   rLines.forEach((line, index) => {
-    pdf.text(line, 20, 24 + index * returnLineHeight)
+    pdf.text(line, ox + 20, oy + 24 + index * returnLineHeight)
   })
 
-  pdf.setFontSize(fontSize)
-  const centerX = pageWidth / 2
-  const centerY = pageHeight / 2
+  pdf.setFontSize(o.fontSize)
+  const centerX = ox + w / 2
+  const centerY = oy + h / 2
 
-  const mainLineHeight = fontSize * lineHeight
-  const lines = [addr.line1, addr.line2, addr.line3, addr.line4].filter((line) => line.trim())
+  const mainLineHeight = o.fontSize * o.lineHeight
+  const lines = [o.addr.line1, o.addr.line2, o.addr.line3, o.addr.line4].filter((line) => line.trim())
   const totalHeight = mainLineHeight * (lines.length - 1)
   const startY = centerY - totalHeight / 2
 
   lines.forEach((line, index) => {
-    let x: number
-    if (alignment === "center") {
-      x = centerX - pdf.getTextWidth(line) / 2
-    } else {
-      x = 40
-    }
+    const x = o.alignment === "center" ? centerX - pdf.getTextWidth(line) / 2 : ox + 40
     pdf.text(line, x, startY + index * mainLineHeight)
   })
+}
 
+// Single source of truth for the exported file — used by both the live preview and Download.
+function buildLabelPdf(opts: LabelOpts, twoUp: boolean): jsPDF {
+  if (twoUp) {
+    // Portrait 4 × 6 sheet (288 × 432 pt) = two 4 × 3 labels (288 × 216) stacked.
+    // Rotated 90° from the native landscape so 4 in is each label's wide edge.
+    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [288, 432] })
+    drawLabel(pdf, 0, 0, 288, 216, opts)
+    drawLabel(pdf, 0, 216, 288, 216, opts)
+    // Dashed cut guide between the two labels.
+    pdf.setLineDashPattern([4, 3], 0)
+    pdf.setDrawColor(160)
+    pdf.setLineWidth(0.5)
+    pdf.line(0, 216, 288, 216)
+    return pdf
+  }
+
+  // Native single label: landscape 4 × 6 sheet (432 × 288 pt), 6 in wide.
+  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [288, 432] })
+  drawLabel(pdf, 0, 0, 432, 288, opts)
   return pdf
 }
 
@@ -116,6 +132,9 @@ export default function LabelStudio() {
   const [fontSize, setFontSize] = useState(18)
   const [lineHeight, setLineHeight] = useState(1.2)
   const [alignment, setAlignment] = useState<"center" | "left">("center")
+  const [returnFontSize, setReturnFontSize] = useState(10)
+  const [returnLineHeight, setReturnLineHeight] = useState(1.3)
+  const [twoUp, setTwoUp] = useState(false)
 
   const isCenter = alignment === "center"
 
@@ -145,7 +164,10 @@ export default function LabelStudio() {
         const pdfjs = await import("pdfjs-dist")
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
 
-        const doc = buildLabelPdf(ret, addr, includeReturn, fontSize, lineHeight, alignment)
+        const doc = buildLabelPdf(
+          { ret, addr, includeReturn, fontSize, lineHeight, alignment, returnFontSize, returnLineHeight },
+          twoUp,
+        )
         const data = new Uint8Array(doc.output("arraybuffer") as ArrayBuffer)
         const loadingTask = pdfjs.getDocument({ data })
         const pdf = await loadingTask.promise
@@ -180,7 +202,7 @@ export default function LabelStudio() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [ret, addr, includeReturn, fontSize, lineHeight, alignment, sizeTick])
+  }, [ret, addr, includeReturn, fontSize, lineHeight, alignment, returnFontSize, returnLineHeight, twoUp, sizeTick])
 
   const reset = () => {
     setRet({ ...DEFAULTS.ret })
@@ -189,6 +211,9 @@ export default function LabelStudio() {
     setFontSize(18)
     setLineHeight(1.2)
     setAlignment("center")
+    setReturnFontSize(10)
+    setReturnLineHeight(1.3)
+    setTwoUp(false)
   }
 
   const swap = () => {
@@ -198,8 +223,12 @@ export default function LabelStudio() {
 
   const download = () => {
     const slug = recipientFirstNameSlug(addr.line1)
-    const filename = slug ? `mailing-label-4x6-${slug}.pdf` : "mailing-label-4x6.pdf"
-    buildLabelPdf(ret, addr, includeReturn, fontSize, lineHeight, alignment).save(filename)
+    const base = twoUp ? "mailing-labels-4x3" : "mailing-label-4x6"
+    const filename = slug ? `${base}-${slug}.pdf` : `${base}.pdf`
+    buildLabelPdf(
+      { ret, addr, includeReturn, fontSize, lineHeight, alignment, returnFontSize, returnLineHeight },
+      twoUp,
+    ).save(filename)
   }
 
   const segBase: CSSProperties = {
@@ -314,7 +343,7 @@ export default function LabelStudio() {
               padding: "6px 13px",
             }}
           >
-            4 × 6 in · Landscape · 72 DPI
+            {twoUp ? "2 × (4 × 3 in) · Portrait" : "4 × 6 in · Landscape"} · 72 DPI
           </span>
           <button
             type="button"
@@ -383,10 +412,10 @@ export default function LabelStudio() {
             </div>
 
             <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", color: "#94a1b2", marginBottom: 9 }}>
-              ← 6 in →
+              ← {twoUp ? "4" : "6"} in →
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", maxWidth: 560 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 11, width: "100%", maxWidth: 560 }}>
               <div
                 className="ls-vdim"
                 style={{
@@ -398,13 +427,14 @@ export default function LabelStudio() {
                   transform: "rotate(180deg)",
                 }}
               >
-                ← 4 in →
+                ← {twoUp ? "6" : "4"} in →
               </div>
 
               <div
                 style={{
                   flex: 1,
-                  aspectRatio: "3 / 2",
+                  maxWidth: twoUp ? 296 : 560,
+                  aspectRatio: twoUp ? "2 / 3" : "3 / 2",
                   background: "#ffffff",
                   borderRadius: 6,
                   boxShadow: "0 22px 44px -20px rgba(27,58,107,0.4), 0 2px 6px rgba(27,58,107,0.08)",
@@ -555,6 +585,33 @@ export default function LabelStudio() {
               <div style={{ flex: 1, height: 1, background: "#e6ebf1" }} />
             </div>
 
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 11,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "#7a8595",
+                }}
+              >
+                Sheet Layout
+              </span>
+              <div style={{ display: "flex", gap: 4, padding: 4, background: "#eaeef3", borderRadius: 11, border: "1px solid #dde4ec" }}>
+                <button type="button" onClick={() => setTwoUp(false)} style={{ ...segBase, ...(!twoUp ? segActive : segInactive) }}>
+                  Single 4 × 6
+                </button>
+                <button type="button" onClick={() => setTwoUp(true)} style={{ ...segBase, ...(twoUp ? segActive : segInactive) }}>
+                  Two 4 × 3
+                </button>
+              </div>
+              <span style={{ fontSize: 12, lineHeight: 1.45, color: "#94a1b2" }}>
+                {twoUp
+                  ? "Two 4 × 3 labels stacked and rotated 90° so 4 in is the wide edge. Cut along the dashed guide."
+                  : "One 4 × 6 label, 6 in wide (landscape)."}
+              </span>
+            </div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <span
                 style={{
@@ -583,7 +640,7 @@ export default function LabelStudio() {
               <div className="ls-sliders" style={{ display: "flex", gap: 22 }}>
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Font size</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Recipient size</span>
                     <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{fontSize}px</span>
                   </div>
                   <input
@@ -593,14 +650,14 @@ export default function LabelStudio() {
                     step={1}
                     value={fontSize}
                     onChange={(e) => setFontSize(Number(e.target.value))}
-                    aria-label="Font size"
+                    aria-label="Recipient font size"
                     style={{ width: "100%", height: 5, cursor: "pointer" }}
                   />
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Line height</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Recipient line height</span>
                     <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{lineHeight.toFixed(1)}</span>
                   </div>
                   <input
@@ -610,11 +667,49 @@ export default function LabelStudio() {
                     step={0.1}
                     value={lineHeight}
                     onChange={(e) => setLineHeight(Number(e.target.value))}
-                    aria-label="Line height"
+                    aria-label="Recipient line height"
                     style={{ width: "100%", height: 5, cursor: "pointer" }}
                   />
                 </div>
               </div>
+
+              {includeReturn && (
+                <div className="ls-sliders" style={{ display: "flex", gap: 22 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Return size</span>
+                      <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{returnFontSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={6}
+                      max={24}
+                      step={1}
+                      value={returnFontSize}
+                      onChange={(e) => setReturnFontSize(Number(e.target.value))}
+                      aria-label="Return address font size"
+                      style={{ width: "100%", height: 5, cursor: "pointer" }}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 9 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: "#3d4756" }}>Return line height</span>
+                      <span style={{ fontFamily: MONO, fontSize: 12, color: "#7a8595" }}>{returnLineHeight.toFixed(1)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.8}
+                      max={2}
+                      step={0.1}
+                      value={returnLineHeight}
+                      onChange={(e) => setReturnLineHeight(Number(e.target.value))}
+                      aria-label="Return address line height"
+                      style={{ width: "100%", height: 5, cursor: "pointer" }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -641,11 +736,41 @@ export default function LabelStudio() {
                 transition: "background .15s",
               }}
             >
-              <span style={{ fontFamily: MONO, fontWeight: 700 }}>↓</span> Download 4 × 6 PDF
+              <span style={{ fontFamily: MONO, fontWeight: 700 }}>↓</span> Download {twoUp ? "two 4 × 3" : "4 × 6"} PDF
             </button>
           </div>
         </aside>
       </main>
+
+      <footer
+        style={{
+          padding: "14px 28px",
+          borderTop: "1px solid #d9e0e8",
+          background: "#f6f8fb",
+          fontFamily: SANS,
+          fontSize: 12.5,
+          color: "#7a8595",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 5,
+        }}
+      >
+        <span>Made with</span>
+        <Heart size={13} fill="#c8102e" strokeWidth={0} aria-hidden="true" style={{ display: "block" }} />
+        <span>
+          by{" "}
+          <a
+            className="ls-credit"
+            href="https://x.com/aeksco"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#1b3a6b", fontWeight: 600, textDecoration: "none" }}
+          >
+            @aeksco
+          </a>
+        </span>
+      </footer>
     </div>
   )
 }

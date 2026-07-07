@@ -50,3 +50,7 @@ pnpm dev          # start the dev server → http://localhost:3000
 ## Deployment
 
 Deploys as a static page plus client-side JS — works out of the box on [Vercel](https://vercel.com/). No server runtime or environment variables required.
+
+---
+
+Made with ❤️ by [@aeksco](https://x.com/aeksco)
