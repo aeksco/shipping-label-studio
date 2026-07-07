@@ -95,6 +95,18 @@ function buildLabelPdf(
   return pdf
 }
 
+// First token of the recipient name, kebab-cased with accents/special chars stripped.
+// "Jane Doe" -> "jane"; "Mary-Jane O'Neil" -> "mary-jane"; "José" -> "jose"; "" -> "".
+function recipientFirstNameSlug(recipientName: string): string {
+  const first = recipientName.trim().split(/\s+/)[0] ?? ""
+  return first
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "") // strip combining diacritical marks
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
 export default function LabelStudio() {
   const [ret, setRet] = useState<Address>({ ...DEFAULTS.ret })
   const [addr, setAddr] = useState<Address>({ ...DEFAULTS.addr })
@@ -151,7 +163,7 @@ export default function LabelStudio() {
         if (!ctx) return
 
         renderTaskRef.current?.cancel()
-        const task = page.render({ canvas, canvasContext: ctx, viewport })
+        const task = page.render({ canvasContext: ctx, viewport })
         renderTaskRef.current = task
         await task.promise
         loadingTask.destroy()
@@ -183,7 +195,9 @@ export default function LabelStudio() {
   }
 
   const download = () => {
-    buildLabelPdf(ret, addr, includeReturn, fontSize, lineHeight, alignment).save("mailing-label-4x6.pdf")
+    const slug = recipientFirstNameSlug(addr.line1)
+    const filename = slug ? `mailing-label-4x6-${slug}.pdf` : "mailing-label-4x6.pdf"
+    buildLabelPdf(ret, addr, includeReturn, fontSize, lineHeight, alignment).save(filename)
   }
 
   const segBase: CSSProperties = {
