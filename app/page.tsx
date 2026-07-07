@@ -28,7 +28,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
   .ls-desk { padding: 22px 14px !important; }
   .ls-vdim { display: none !important; }
   .ls-scroll { overflow: visible !important; padding: 18px !important; }
-  .ls-cols { flex-direction: column !important; gap: 18px !important; }
+  .ls-cols { flex-direction: column !important; gap: 18px !important; align-items: stretch !important; }
   .ls-sliders { flex-direction: column !important; gap: 14px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
