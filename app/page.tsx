@@ -7,11 +7,11 @@ import jsPDF from "jspdf"
 const MONO = "var(--font-jetbrains), monospace"
 const SANS = "var(--font-instrument), system-ui, sans-serif"
 
-type Address = { line1: string; line2: string; line3: string; line4: string }
+type Address = { line1: string; line2: string; line3: string; line4: string; line5: string }
 
 const DEFAULTS: { ret: Address; addr: Address } = {
-  ret: { line1: "John Doe", line2: "123 Main Street", line3: "Apt. 1B", line4: "Anytown, USA 12345" },
-  addr: { line1: "Jane Doe", line2: "456 Main Street", line3: "Apt. 2C", line4: "Anytown, USA 12345" },
+  ret: { line1: "John Doe", line2: "123 Main Street", line3: "Apt. 1B", line4: "Anytown, USA 12345", line5: "" },
+  addr: { line1: "Jane Doe", line2: "456 Main Street", line3: "Apt. 2C", line4: "Anytown, USA 12345", line5: "" },
 }
 
 // Recipient type defaults per layout — the smaller 4 × 3 label wants a smaller starting size.
@@ -73,7 +73,7 @@ type LabelOpts = {
 // Draw one label into the region (ox, oy) sized w × h (points).
 function drawLabel(pdf: jsPDF, ox: number, oy: number, w: number, h: number, o: LabelOpts) {
   const rLines = o.includeReturn
-    ? [o.ret.line1, o.ret.line2, o.ret.line3, o.ret.line4].filter((line) => line.trim())
+    ? [o.ret.line1, o.ret.line2, o.ret.line3, o.ret.line4, o.ret.line5].filter((line) => line.trim())
     : []
   pdf.setFont("helvetica", "normal")
   pdf.setFontSize(o.returnFontSize)
@@ -87,7 +87,7 @@ function drawLabel(pdf: jsPDF, ox: number, oy: number, w: number, h: number, o: 
   const centerY = oy + h / 2
 
   const mainLineHeight = o.fontSize * o.lineHeight
-  const lines = [o.addr.line1, o.addr.line2, o.addr.line3, o.addr.line4].filter((line) => line.trim())
+  const lines = [o.addr.line1, o.addr.line2, o.addr.line3, o.addr.line4, o.addr.line5].filter((line) => line.trim())
   const totalHeight = mainLineHeight * (lines.length - 1)
   const startY = centerY - totalHeight / 2
 
@@ -557,6 +557,7 @@ export default function LabelStudio() {
                     <input className="ls-input" value={ret.line2} onChange={(e) => setRet({ ...ret, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
                     <input className="ls-input" value={ret.line3} onChange={(e) => setRet({ ...ret, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
                     <input className="ls-input" value={ret.line4} onChange={(e) => setRet({ ...ret, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
+                    <input className="ls-input" value={ret.line5} onChange={(e) => setRet({ ...ret, line5: e.target.value })} placeholder="Country (optional)" style={inputStyle} />
                   </>
                 ) : (
                   <div style={{ fontSize: 12.5, lineHeight: 1.45, color: "#94a1b2", background: "#f8fafc", border: "1px dashed #dbe2ea", borderRadius: 9, padding: "11px 13px" }}>
@@ -577,6 +578,7 @@ export default function LabelStudio() {
                 <input className="ls-input" value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} placeholder="Street address" style={inputStyle} />
                 <input className="ls-input" value={addr.line3} onChange={(e) => setAddr({ ...addr, line3: e.target.value })} placeholder="Apt / Suite" style={inputStyle} />
                 <input className="ls-input" value={addr.line4} onChange={(e) => setAddr({ ...addr, line4: e.target.value })} placeholder="City, State ZIP" style={inputStyle} />
+                <input className="ls-input" value={addr.line5} onChange={(e) => setAddr({ ...addr, line5: e.target.value })} placeholder="Country (optional)" style={inputStyle} />
               </div>
             </div>
 
