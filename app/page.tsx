@@ -15,6 +15,8 @@ const DEFAULTS: { ret: Address; addr: Address } = {
 }
 
 // Recipient type defaults per layout — the smaller 4 × 3 label wants a smaller starting size.
+const ADDRESSES_KEY = "shipping-label-studio:addresses"
+
 const TYPE_DEFAULTS = {
   single: { fontSize: 18, lineHeight: 1.2 },
   twoUp: { fontSize: 12, lineHeight: 1.1 },
@@ -143,6 +145,24 @@ export default function LabelStudio() {
   const [twoUp, setTwoUp] = useState(false)
 
   const isCenter = alignment === "center"
+
+  // Persist the last-used sender/recipient addresses. Load after mount (avoids an SSR
+  // hydration mismatch) and only start saving once loaded so defaults don't clobber them.
+  const [addressesLoaded, setAddressesLoaded] = useState(false)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ADDRESSES_KEY) ?? "null")
+      if (saved?.ret) setRet({ ...DEFAULTS.ret, ...saved.ret })
+      if (saved?.addr) setAddr({ ...DEFAULTS.addr, ...saved.addr })
+    } catch {}
+    setAddressesLoaded(true)
+  }, [])
+  useEffect(() => {
+    if (!addressesLoaded) return
+    try {
+      localStorage.setItem(ADDRESSES_KEY, JSON.stringify({ ret, addr }))
+    } catch {}
+  }, [ret, addr, addressesLoaded])
 
   // Render the real exported PDF into a canvas so the preview is a pixel-accurate
   // WYSIWYG of the downloaded file — no browser PDF-viewer chrome. Debounced so
